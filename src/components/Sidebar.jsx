@@ -33,11 +33,7 @@ const Sidebar = ({
   useEffect(() => {
       if (!user || users.length === 0) return;
 
-      // Recupera IDs salvos
       const savedOpenDMs = JSON.parse(localStorage.getItem(`openDMs_${user.uid}`)) || [];
-      
-      // Reconstrói a lista usando os dados FRESCOS de 'users'
-      // Isso garante que se o nome mudou no banco, aqui atualiza também
       const restoredDMs = users.filter(u => savedOpenDMs.includes(u.id));
       
       const unreadUserIds = [];
@@ -52,12 +48,10 @@ const Sidebar = ({
       });
 
       const allIdsToShow = [...new Set([...savedOpenDMs, ...unreadUserIds])];
-      
-      // Cria a lista final sempre baseada na prop 'users' (que vem do banco)
       const finalDMs = users.filter(u => allIdsToShow.includes(u.id));
 
       setActiveDMs(finalDMs);
-  }, [user, users]); // Roda sempre que 'users' mudar (edição de perfil)
+  }, [user, users]); 
 
   // 2. MONITORAR NOVAS MENSAGENS
   useEffect(() => {
@@ -138,7 +132,6 @@ const Sidebar = ({
 
       selectDM({
           ...freshUser,
-          // Prioridade para o nome do banco
           name: freshUser.name || freshUser.displayName || 'Usuário'
       });
       setShowUserListModal(false);
@@ -196,10 +189,10 @@ const Sidebar = ({
                 onClose={() => setShowUserListModal(false)}
                 onSelectUser={handleUserSelect}
                 currentUserId={user?.uid}
+                users={users} // AQUI ESTÁ A CORREÇÃO: Passando a lista viva
             />
         )}
 
-        {/* Botão de Admin */}
         <div className="p-4 border-b border-gray-800">
              <button
                 onClick={() => setShowAdminPanel(!showAdminPanel)}
@@ -212,7 +205,6 @@ const Sidebar = ({
             </button>
         </div>
 
-        {/* Conteúdo Variável */}
         {showAdminPanel ? (
             <AdminPanel 
                 channels={channels} 
@@ -272,11 +264,8 @@ const Sidebar = ({
                             <p className="text-xs text-gray-600 italic px-2">Nenhuma conversa aberta.</p>
                         )}
                         {activeDMs.filter(u => u.id !== user?.uid).map(u => {
-                            // AQUI ESTAVA O SEGREDO: BUSCA EM TEMPO REAL
                             const liveUser = users.find(user => user.id === u.id) || u;
                             
-                            // AQUI ESTAVA O PROBLEMA: INVERTIDA A ORDEM
-                            // Agora: Tenta 'name' (banco). Se não tiver, usa 'displayName' (auth).
                             const displayName = liveUser.name || liveUser.displayName || 'Usuário';
                             const displayAvatar = liveUser.photoURL;
                             const isOnline = liveUser.isOnline;
