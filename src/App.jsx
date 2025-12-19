@@ -81,8 +81,8 @@ const App = () => {
       setUsers(usersList);
     });
 
-    // Canais (Rooms)
-    const qRooms = query(collection(db, 'rooms'), orderBy('createdAt', 'asc'));
+    // Canais (Rooms) - SEM orderBy para o Geral aparecer
+    const qRooms = collection(db, 'rooms');
     const unsubRooms = onSnapshot(qRooms, (snapshot) => {
         const roomsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
@@ -158,14 +158,17 @@ const App = () => {
     });
 
     // Listener de Mensagens
-    const q = query(
-        collection(db, `conversations/${currentConversationId}/messages`),
-        orderBy('createdAt', 'desc') // Pega do mais novo para o mais velho (para scroll infinito funcionar bem invertido, ou normal array reverse)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+    const messagesRef = collection(db, `conversations/${currentConversationId}/messages`);
+    const unsubscribe = onSnapshot(messagesRef, (snapshot) => {
+      let msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
+      // Ordena manualmente para evitar erro de index
+      msgs.sort((a, b) => {
+          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.timestamp || 0);
+          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.timestamp || 0);
+          return tA - tB;
+      });
+
       // Filtro local para limitar a quantidade exibida inicialmente (simulando paginação)
       const visibleMsgs = msgs.slice(Math.max(msgs.length - messagesLimit, 0));
       
@@ -234,6 +237,21 @@ const App = () => {
       }
   };
 
+  // FUNÇÃO IMPORTANTE: Atualiza o perfil e reconecta com a Sidebar
+  const handleUpdateProfile = async (name, avatar) => {
+      if(!user) return;
+      try {
+          await updateProfile(user, { displayName: name, photoURL: avatar });
+          await updateDoc(doc(db, 'users', user.uid), {
+              name: name,
+              photoURL: avatar
+          });
+          window.location.reload();
+      } catch(e) {
+          console.error(e);
+      }
+  };
+
   const selectChannel = (id, name) => {
       setCurrentConversationId(id);
       setCurrentConversationName(name);
@@ -277,7 +295,7 @@ const App = () => {
               timestamp: Date.now()
           });
 
-          // Atualiza metadados para notificar o outro usuário (mesmo com regras estritas)
+          // Atualiza metadados para notificar o outro usuário
           await setDoc(conversationRef, {
               lastNudge: user.uid,
               lastNudgeTime: serverTimestamp(),
@@ -338,8 +356,6 @@ const App = () => {
       if (!msg) return;
       const isPinnedNow = !msg.isPinned;
       
-      // Se for fixar, desfixa as outras primeiro (opcional, ou permite múltiplas)
-      // Aqui vamos permitir apenas 1 por vez para simplificar a UI
       if (isPinnedNow) {
           const q = query(collection(db, `conversations/${currentConversationId}/messages`), where("isPinned", "==", true));
           const snapshot = await getDocs(q);
@@ -353,7 +369,7 @@ const App = () => {
       });
   };
 
-  // --- CORREÇÃO DO REACTION AQUI ---
+  // --- REAÇÃO RESTAURADA E SEGURA ---
   const handleReaction = async (messageId, emoji) => {
     if (!currentConversationId || !user) return;
     try {
@@ -364,15 +380,12 @@ const App = () => {
         const data = msgSnap.data();
         const currentReactions = data.reactions || {};
 
-        // Lógica Toggle
         if (currentReactions[user.uid] === emoji) {
            delete currentReactions[user.uid];
         } else {
            currentReactions[user.uid] = emoji;
         }
 
-        // ATUALIZAÇÃO CIRÚRGICA: SÓ MANDA REACTION
-        // Isso evita bloqueio das regras de segurança que protegem texto/data
         await updateDoc(msgRef, {
           reactions: currentReactions
         });
@@ -388,7 +401,7 @@ const App = () => {
       try {
           const audio = new Audio("/msn_nudge.mp3");
           audio.volume = 0.8;
-          audio.play().catch(e => console.log("Audio autoplay block", e));
+          audio.play().catch(e => console.log("Audio play prevented"));
       } catch(e) {}
       setTimeout(() => setShake(false), 800);
   };
@@ -462,7 +475,7 @@ const App = () => {
           setShowAdminPanel={setShowAdminPanel}
           selectChannel={selectChannel}
           selectDM={selectDM}
-          onChangeName={(name) => updateProfile(user, { displayName: name })}
+          onChangeName={handleUpdateProfile}
           isDarkMode={isDarkMode}
           toggleTheme={() => setIsDarkMode(!isDarkMode)}
           notificationUserId={notificationUserId}
@@ -488,7 +501,7 @@ const App = () => {
               typingUsers={typingUsers}
               pinnedMessage={pinnedMessage}
               onPin={handlePinMessage}
-              onUnpin={() => handlePinMessage(pinnedMessage)} // Botão de fechar usa a mesma lógica
+              onUnpin={() => handlePinMessage(pinnedMessage)} 
               currentChannel={currentChannel}
               allUsers={users}
               onLoadMore={loadMoreMessages}
