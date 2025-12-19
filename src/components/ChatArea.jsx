@@ -239,6 +239,25 @@ const ChatArea = ({
       } catch (e) { console.error("Erro no efeito de zumbido", e); }
   };
 
+  // --- NOVA FUNÇÃO PARA TRATAR O CTRL+V (PASTE) ---
+  const handlePaste = (e) => {
+    // Se o usuário estiver colando texto normal, deixa o navegador lidar
+    if (!e.clipboardData || !e.clipboardData.items) return;
+
+    const items = e.clipboardData.items;
+    
+    // Procura por imagem na área de transferência
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            // É uma imagem!
+            const blob = items[i].getAsFile();
+            setAttachmentFile(blob);
+            e.preventDefault(); // Impede que cole o código binário no texto
+            return;
+        }
+    }
+  };
+
   const handleSendClick = async (e) => {
     e.preventDefault();
     if (editingMessage) {
@@ -432,10 +451,7 @@ const ChatArea = ({
                         if (currentDate.toDateString() !== prevDate.toDateString()) { showDateSeparator = true; dateLabel = getDateLabel(currentDate); }
                     }
 
-                    // --- MUDANÇA PRINCIPAL AQUI ---
-                    // Procuramos o usuário atual na lista global (allUsers)
                     const sender = allUsers.find(u => u.id === msg.userId);
-                    // Se achou, usa o nome/avatar ATUAL. Se não, usa o antigo gravado na msg.
                     const currentName = sender ? (sender.name || sender.displayName) : msg.userName;
                     const currentAvatar = sender ? sender.photoURL : msg.userAvatar;
 
@@ -444,7 +460,6 @@ const ChatArea = ({
                             {showDateSeparator && (<div className="flex justify-center my-4 sticky top-2 z-0"><span className="bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-[10px] font-bold py-1 px-3 rounded-full shadow-sm uppercase tracking-wide opacity-90 border border-gray-300 dark:border-gray-700">{dateLabel}</span></div>)}
                             <Message 
                                 msg={msg} 
-                                // PASSANDO OS DADOS REAIS E ATUALIZADOS
                                 senderName={currentName} 
                                 senderAvatar={currentAvatar}
                                 isMine={isMine} 
@@ -521,7 +536,17 @@ const ChatArea = ({
                         <button onClick={stopRecording} className="text-red-500 hover:bg-red-100 p-1 rounded"><Square className="w-5 h-5 fill-current" /></button>
                     </div>
                 ) : (
-                    <input ref={textInputRef} type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder={editingMessage ? "Edite sua mensagem..." : "Mensagem..."} className="flex-grow p-3 bg-white dark:bg-[#2a3942] dark:text-white border-0 rounded-2xl focus:ring-0 focus:outline-none shadow-sm placeholder-gray-500 dark:placeholder-gray-400 text-gray-700 transition-colors duration-300" disabled={!currentConversationId} />
+                    <input 
+                        ref={textInputRef} 
+                        type="text" 
+                        value={newMessage} 
+                        onChange={(e) => setNewMessage(e.target.value)} 
+                        onKeyDown={handleKeyDown} 
+                        onPaste={handlePaste} // AQUI ESTÁ O SEGREDO DO CTRL+V!
+                        placeholder={editingMessage ? "Edite sua mensagem..." : "Mensagem..."} 
+                        className="flex-grow p-3 bg-white dark:bg-[#2a3942] dark:text-white border-0 rounded-2xl focus:ring-0 focus:outline-none shadow-sm placeholder-gray-500 dark:placeholder-gray-400 text-gray-700 transition-colors duration-300" 
+                        disabled={!currentConversationId} 
+                    />
                 )}
                 
                 {!newMessage.trim() && !attachmentFile && !isRecording && !editingMessage ? (
@@ -535,6 +560,16 @@ const ChatArea = ({
                 )}
             </div>
         </footer>
+
+        {selectedImage && (
+            <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedImage(null)}>
+                <img src={selectedImage} alt="Full size" className="max-w-full max-h-full rounded-lg shadow-2xl" />
+                <div className="absolute top-4 right-4 flex gap-4">
+                    <button onClick={(e) => { e.stopPropagation(); handleForceDownload(selectedImage); }} className="text-white hover:text-gray-300 p-2 bg-black/50 rounded-full transition" title="Baixar Imagem"><Download className="w-8 h-8" /></button>
+                    <button onClick={() => setSelectedImage(null)} className="text-white hover:text-gray-300 p-2 bg-black/50 rounded-full transition"><X className="w-8 h-8" /></button>
+                </div>
+            </div>
+        )}
     </div>
   );
 };
