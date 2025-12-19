@@ -1,162 +1,172 @@
 import React from 'react';
-import { stringToHslColor, getInitials } from '../utils';
-import { FileText, Download, Trash2, Reply, Pin, Zap, Check, CheckCheck, Edit2 } from 'lucide-react';
+import { Check, CheckCheck, Trash2, CornerUpLeft, Pin } from 'lucide-react';
 
-// RECEBENDO OS NOVOS PROPS: senderName e senderAvatar
-const Message = ({ msg, senderName, senderAvatar, isMine, isSequence, onReaction, onDelete, onReply, onImageClick, onPin, isMentioned, isRead, onEdit }) => {
+const Message = ({ 
+    msg, 
+    senderName, 
+    senderAvatar, 
+    isMine, 
+    isSequence, 
+    onReaction, 
+    onDelete, 
+    onReply, 
+    onImageClick, 
+    onPin,
+    onEdit, 
+    isMentioned,
+    isRead
+}) => {
   
-  // USANDO OS NOMES ATUALIZADOS AO INVÉS DO ANTIGO (msg.userName)
-  // Se senderName vier vazio por algum erro, usa msg.userName como backup
-  const displayName = senderName || msg.userName || 'Anon';
-  const displayAvatar = senderAvatar || msg.userAvatar;
-
-  const avatarColor = stringToHslColor(displayName);
-  const initials = getInitials(displayName);
-  
-  const hasAttachment = !!msg.attachment;
-  const isNudge = msg.type === 'nudge';
-  const isAudio = msg.type === 'audio';
-
-  const messageTime = msg.createdAt ? (msg.createdAt.toDate ? msg.createdAt.toDate().getTime() : msg.createdAt) : Date.now();
-  const isRecent = (Date.now() - messageTime) < 900000;
-
-  const canEdit = isMine && !isNudge && !isAudio && !hasAttachment && msg.text && isRecent;
-  const canDelete = isMine && isRecent;
-
-  const handleForceDownload = (url, fileName) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.responseType = 'blob';
-      xhr.onload = function() {
-          if (xhr.status === 200) {
-              const blob = xhr.response;
-              const link = document.createElement('a');
-              link.href = window.URL.createObjectURL(blob);
-              link.download = fileName || 'download';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-          } else { window.open(url, '_blank'); }
-      };
-      xhr.onerror = () => window.open(url, '_blank');
-      xhr.send();
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getUniqueReactions = () => {
-      if (!msg.reactions || msg.reactions.length === 0) return [];
-      const emojis = msg.reactions.map(r => r.split(':')[0]);
-      return [...new Set(emojis)]; 
-  };
+  const reactionsCount = msg.reactions ? Object.values(msg.reactions).length : 0;
+  const displayEmoji = reactionsCount > 0 ? Object.values(msg.reactions)[0] : null;
 
-  const renderAttachment = () => {
-    if (!hasAttachment) return null;
-    const url = msg.attachment.url || msg.attachment.data;
-    const name = msg.attachment.name || 'Anexo';
-    const type = msg.attachment.type || '';
-
-    if (type && type.startsWith('image/')) {
-        return (
-            <div className="mb-2 mt-1 rounded-lg overflow-hidden max-w-full border border-gray-200 dark:border-gray-700 relative group">
-                <img src={url} alt={name} className="max-h-64 w-full object-cover cursor-pointer hover:opacity-90 transition" onClick={() => onImageClick(url)} />
-                <button onClick={(e) => { e.stopPropagation(); handleForceDownload(url, name); }} className="absolute bottom-2 right-2 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-md backdrop-blur-sm cursor-pointer z-10" title="Baixar Imagem"><Download className="w-4 h-4" /></button>
-            </div>
-        );
-    }
-
-    if (type && type.startsWith('audio/')) {
-        return (
-             <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-2 rounded mb-2 min-w-[280px]">
-                <audio controls preload="metadata" src={url} className="w-full h-10" />
+  const renderContent = () => {
+      if (msg.type === 'image' && msg.fileUrl) {
+          return (
+              <div className="mt-1 mb-1 group relative">
+                  <img 
+                      src={msg.fileUrl} 
+                      alt="Anexo" 
+                      className="max-w-full sm:max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition border border-gray-200 dark:border-gray-700"
+                      onClick={() => onImageClick(msg.fileUrl)}
+                  />
+              </div>
+          );
+      }
+      
+      if (msg.type === 'audio' && msg.fileUrl) {
+          return (
+             <div className="mt-1 mb-1 min-w-[200px]">
+                 <audio controls src={msg.fileUrl} className="w-full h-8" />
              </div>
-        );
-    }
+          );
+      }
 
-    return (
-        <div onClick={() => handleForceDownload(url, name)} className="flex items-center gap-3 bg-gray-100 dark:bg-gray-800/50 p-3 rounded-lg mb-2 mt-1 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition group cursor-pointer" title="Clique para baixar">
-            <div className="p-2 bg-white dark:bg-gray-700 rounded-full"><FileText className="w-5 h-5 text-[#00a884]" /></div>
-            <div className="flex flex-col overflow-hidden max-w-[150px]"><span className="text-sm font-bold truncate text-gray-800 dark:text-gray-200">{name}</span><span className="text-[10px] uppercase text-gray-500 font-medium">{type.split('/')[1] || 'ARQUIVO'}</span></div>
-            <div className="ml-auto text-gray-400 group-hover:text-[#00a884]"><Download className="w-5 h-5" /></div>
-        </div>
-    );
+      if (msg.type === 'nudge') {
+          return (
+              <div className="flex items-center text-yellow-600 dark:text-yellow-500 font-bold italic py-2">
+                  <span>🔔 Enviou um Zumbido!</span>
+              </div>
+          );
+      }
+
+      return (
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+              {msg.text}
+          </p>
+      );
   };
-
-  const marginTop = isSequence ? 'mt-1' : 'mt-4';
-  const bubbleRadius = isMine ? (isSequence ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-tr-none') : (isSequence ? 'rounded-2xl rounded-tl-md' : 'rounded-2xl rounded-tl-none');
-  const bubbleColor = isMine ? 'bg-[#005c4b] text-white shadow-sm' : (isMentioned ? 'bg-yellow-100 dark:bg-yellow-900/30 text-gray-900 dark:text-gray-100 border border-yellow-500/50 shadow-sm' : 'bg-white dark:bg-[#202c33] text-gray-900 dark:text-gray-100 shadow-sm');
-  const CheckIcon = isRead ? CheckCheck : Check; 
-  const checkColor = isRead ? 'text-blue-300' : 'text-gray-400';
 
   return (
-    <div className={`flex w-full ${marginTop} ${isMine ? 'justify-end' : 'justify-start'} group relative animate-in fade-in duration-200`}>
-        {!isMine && (
-            <div className="w-8 mr-2 flex-shrink-0 flex flex-col justify-end">
-                {!isSequence ? (
-                    displayAvatar ? <img src={displayAvatar} alt={initials} className="w-8 h-8 rounded-full object-cover shadow-sm" /> : <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm" style={{ backgroundColor: avatarColor }}>{initials}</div>
-                ) : (<div className="w-8" />)}
+    <div className={`flex flex-col mb-1 w-full ${isSequence ? 'mt-0.5' : 'mt-3'} ${isMine ? 'items-end' : 'items-start'} ${isMentioned ? 'bg-yellow-100/30 p-1 rounded-lg -mx-1' : ''}`}>
+        
+        {!isMine && !isSequence && (
+            <div className="flex items-end mb-1 ml-10">
+                <span className="text-xs font-bold text-gray-600 dark:text-gray-300 mr-2">
+                    {senderName || 'Usuário'}
+                </span>
+                <span className="text-[10px] text-gray-400">
+                    {formatTime(msg.createdAt)}
+                </span>
             </div>
         )}
 
-        <div className={`relative max-w-[85%] md:max-w-[70%] flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-            {!isMine && !isSequence && !isNudge && (
-                <span className="text-[11px] font-bold mb-1 ml-1 cursor-pointer hover:underline" style={{ color: avatarColor }}>{displayName}</span>
+        <div className={`flex max-w-[85%] md:max-w-[70%] group relative ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+            
+            {!isMine && (
+                <div className="flex-shrink-0 mr-2 w-8">
+                    {!isSequence ? (
+                        senderAvatar ? (
+                            <img src={senderAvatar} className="w-8 h-8 rounded-full object-cover shadow-sm" alt="Avatar" />
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
+                                {senderName?.[0]}
+                            </div>
+                        )
+                    ) : <div className="w-8" />} 
+                </div>
             )}
 
-            <div className={`relative px-3 py-2 ${bubbleRadius} ${bubbleColor} ${isNudge ? 'w-full' : ''}`}>
+            <div className={`relative px-3 py-2 shadow-sm text-gray-800 dark:text-gray-100 
+                ${isMine 
+                    ? 'bg-[#d9fdd3] dark:bg-[#005c4b] rounded-l-lg rounded-br-lg' 
+                    : 'bg-white dark:bg-[#202c33] rounded-r-lg rounded-bl-lg border border-gray-100 dark:border-gray-700'
+                } 
+                ${isSequence && isMine ? 'rounded-tr-md' : ''}
+                ${isSequence && !isMine ? 'rounded-tl-md' : ''}
+                ${msg.type === 'nudge' ? 'shake-animation border-2 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20' : ''}
+            `}>
+                
                 {msg.replyTo && (
-                    <div className="mb-2 p-2 rounded bg-black/5 dark:bg-black/20 border-l-4 border-[#00a884] text-xs opacity-80">
-                        <span className="font-bold block text-[#00a884]">{msg.replyTo.userName}</span>
-                        <span className="truncate block">{msg.replyTo.text}</span>
+                    <div className="mb-1 text-xs border-l-4 border-[#00a884] bg-black/5 dark:bg-white/5 p-1 rounded text-gray-600 dark:text-gray-300 truncate max-w-[200px] opacity-80">
+                         Replying: {msg.replyTo.text || 'Mídia'}
                     </div>
-                )}
-
-                {isAudio ? (
-                    <div className="flex items-center min-w-[280px] mt-1 mb-1">
-                        <audio controls preload="metadata" src={msg.attachment?.url} className="w-full h-10" />
-                    </div>
-                ) : (
-                    renderAttachment()
-                )}
-
-                {isNudge ? (
-                    <div className={`flex items-center font-bold italic select-none ${isMine ? 'text-green-100' : 'text-yellow-600 dark:text-yellow-400'}`}><Zap className="w-4 h-4 mr-2 animate-pulse fill-current" /><span>Enviou um zumbido!</span></div>
-                ) : (
-                    !isAudio && msg.text && (
-                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                            {msg.text}
-                            {msg.isEdited && <span className="text-[10px] text-gray-500/80 italic ml-1 select-none">(editado)</span>}
-                        </p>
-                    )
                 )}
                 
-                <div className="flex items-center justify-end gap-1 mt-1 space-x-1 select-none opacity-60">
-                     <span className="text-[10px]">{msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}</span>
-                    {isMine && (<CheckIcon className={`w-3.5 h-3.5 ${checkColor}`} />)}
+                {msg.isPinned && (
+                    <div className="flex items-center text-[10px] text-[#00a884] font-bold mb-1">
+                        <Pin className="w-3 h-3 mr-1 fill-current" /> Fixada
+                    </div>
+                )}
+
+                {renderContent()}
+
+                <div className={`flex items-center justify-end gap-1 mt-1 space-x-1 ${isMine ? '' : 'ml-auto'}`}>
+                    
+                    {msg.isEdited && <span className="text-[9px] text-gray-500 italic">editado</span>}
+
+                    {reactionsCount > 0 && (
+                        <div className="bg-white dark:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-600 rounded-full px-1.5 py-0.5 flex items-center -mb-2 mr-2 z-10 cursor-pointer" onClick={() => onReaction('👍')} title="Ver reações">
+                            <span className="text-xs mr-1">{displayEmoji}</span>
+                            <span className="text-[9px] font-bold text-gray-500 dark:text-gray-300">{reactionsCount > 1 ? reactionsCount : ''}</span>
+                        </div>
+                    )}
+
+                    <span className="text-[9px] text-gray-400 min-w-[30px] text-right">
+                        {isMine ? formatTime(msg.createdAt) : ''}
+                    </span>
+
+                    {isMine && (
+                        <span title={isRead ? "Lido" : "Entregue"}>
+                            {isRead ? (
+                                <CheckCheck className="w-3 h-3 text-blue-500" />
+                            ) : (
+                                <Check className="w-3 h-3 text-gray-400" />
+                            )}
+                        </span>
+                    )}
                 </div>
 
-                {msg.reactions && msg.reactions.length > 0 && (
-                    <div className={`absolute -bottom-2 ${isMine ? 'left-0' : 'right-0'} flex gap-0.5 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded-full shadow border border-gray-100 dark:border-gray-700 z-10 scale-90`}>
-                        {getUniqueReactions().map(emoji => (<span key={emoji} className="text-xs">{emoji}</span>))}
-                        <span className="text-[9px] text-gray-500 font-bold ml-0.5 pt-0.5">{msg.reactions.length}</span>
-                    </div>
-                )}
-            </div>
+                {/* --- AQUI ESTÁ A BARRA DE AÇÕES FLUTUANTE (Igual ao seu print) --- */}
+                <div className={`absolute -top-8 ${isMine ? 'left-0' : 'right-0'} opacity-0 group-hover:opacity-100 transition-opacity flex items-center bg-gray-800 dark:bg-gray-700 rounded-lg shadow-lg p-1 z-20 gap-1 border border-gray-600`}>
+                    
+                    {/* Botões de Reação Específicos */}
+                    <button onClick={() => onReaction('👍')} className="p-1.5 hover:bg-gray-600 rounded-md transition text-lg leading-none" title="Joinha">👍</button>
+                    <button onClick={() => onReaction('❤️')} className="p-1.5 hover:bg-gray-600 rounded-md transition text-lg leading-none" title="Amei">❤️</button>
+                    <button onClick={() => onReaction('😂')} className="p-1.5 hover:bg-gray-600 rounded-md transition text-lg leading-none" title="Haha">😂</button>
+                    
+                    <div className="w-[1px] h-4 bg-gray-600 mx-1"></div>
 
-            <div className={`absolute -top-10 right-0 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-700 shadow-md rounded-lg flex items-center p-1 border border-gray-200 dark:border-gray-600 z-20`}>
-                <button onClick={() => onReaction(msg.id, '👍')} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Curtir">👍</button>
-                <button onClick={() => onReaction(msg.id, '❤️')} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Amei">❤️</button>
-                <button onClick={() => onReaction(msg.id, '😂')} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Haha">😂</button>
-                <div className="w-[1px] h-4 bg-gray-300 mx-1"></div>
-                <button onClick={onReply} className="p-1.5 text-gray-500 hover:text-[#00a884] hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Responder"><Reply className="w-4 h-4"/></button>
-                
-                {canEdit && (
-                    <button onClick={onEdit} className="p-1.5 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Editar"><Edit2 className="w-4 h-4"/></button>
-                )}
-                
-                <button onClick={onPin} className="p-1.5 text-gray-500 hover:text-yellow-500 hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Fixar"><Pin className="w-4 h-4"/></button>
-                
-                {canDelete && (
-                    <button onClick={onDelete} className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-600 rounded" title="Apagar"><Trash2 className="w-4 h-4"/></button>
-                )}
+                    <button onClick={onReply} className="p-1.5 hover:bg-gray-600 rounded-md transition text-gray-300" title="Responder">
+                        <CornerUpLeft className="w-4 h-4" />
+                    </button>
+                    
+                    <button onClick={onPin} className={`p-1.5 hover:bg-gray-600 rounded-md transition ${msg.isPinned ? 'text-[#00a884]' : 'text-gray-300'}`} title={msg.isPinned ? "Desfixar" : "Fixar"}>
+                        <Pin className="w-4 h-4" />
+                    </button>
+
+                    {isMine && (
+                        <button onClick={onDelete} className="p-1.5 hover:bg-red-900/50 rounded-md transition text-gray-300 hover:text-red-400" title="Apagar">
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     </div>
