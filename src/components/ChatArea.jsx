@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
-import { Send, Hash, MessageSquare, Settings, Paperclip, X, FileText, Smile, Zap, Check, CheckCheck, Loader2, Users, Search, Download, Mic, Square, Edit2, ArrowUpCircle } from 'lucide-react';
+import { Send, Hash, MessageSquare, Settings, Paperclip, X, FileText, Smile, Zap, Check, CheckCheck, Loader2, Users, Search, Download, Mic, Square, Edit2 } from 'lucide-react';
 import Message from './Message';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { doc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore'; 
@@ -59,7 +59,6 @@ const ChatArea = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   const [editingMessage, setEditingMessage] = useState(null); 
-
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -376,7 +375,6 @@ const ChatArea = ({
             </div>
         )}
 
-        {/* CORREÇÃO AQUI: Removemos o {showAdminPanel && ...} */}
         {pinnedMessage && (
             <div className="z-10 relative bg-gray-100 dark:bg-[#1f2c34] p-2 px-4 flex justify-between items-center text-xs border-b border-l-4 border-l-[#00a884] dark:border-gray-700 shadow-sm cursor-pointer hover:bg-gray-200 dark:hover:bg-[#2a3942] transition">
                 <div className="flex flex-col"><span className="font-bold text-[#00a884]">Mensagem Fixada</span><span className="text-gray-600 dark:text-gray-300 truncate max-w-[250px]">{pinnedMessage.text}</span></div>
@@ -458,7 +456,7 @@ const ChatArea = ({
                                 senderAvatar={currentAvatar}
                                 isMine={isMine} 
                                 isSequence={isSequence} 
-                                onReaction={() => onReaction(msg.id, '👍')} 
+                                onReaction={(emoji) => onReaction(msg.id, emoji)} 
                                 onDelete={() => onDelete(msg.id)} 
                                 onReply={() => setReplyTo(msg)} 
                                 onImageClick={setSelectedImage} 
@@ -474,6 +472,7 @@ const ChatArea = ({
             <div ref={messagesEndRef} />
         </div>
 
+        {/* INPUT AREA */}
         <footer className="bg-[#f0f2f5] dark:bg-[#202c33] p-2 md:p-3 flex flex-col gap-2 relative z-20 shadow-inner">
             
             {typingUsers && typingUsers.length > 0 && (
