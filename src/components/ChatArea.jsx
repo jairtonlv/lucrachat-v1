@@ -239,20 +239,14 @@ const ChatArea = ({
       } catch (e) { console.error("Erro no efeito de zumbido", e); }
   };
 
-  // --- NOVA FUNÇÃO PARA TRATAR O CTRL+V (PASTE) ---
   const handlePaste = (e) => {
-    // Se o usuário estiver colando texto normal, deixa o navegador lidar
     if (!e.clipboardData || !e.clipboardData.items) return;
-
     const items = e.clipboardData.items;
-    
-    // Procura por imagem na área de transferência
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
-            // É uma imagem!
             const blob = items[i].getAsFile();
             setAttachmentFile(blob);
-            e.preventDefault(); // Impede que cole o código binário no texto
+            e.preventDefault(); 
             return;
         }
     }
@@ -382,10 +376,11 @@ const ChatArea = ({
             </div>
         )}
 
+        {/* CORREÇÃO AQUI: Removemos o {showAdminPanel && ...} */}
         {pinnedMessage && (
             <div className="z-10 relative bg-gray-100 dark:bg-[#1f2c34] p-2 px-4 flex justify-between items-center text-xs border-b border-l-4 border-l-[#00a884] dark:border-gray-700 shadow-sm cursor-pointer hover:bg-gray-200 dark:hover:bg-[#2a3942] transition">
                 <div className="flex flex-col"><span className="font-bold text-[#00a884]">Mensagem Fixada</span><span className="text-gray-600 dark:text-gray-300 truncate max-w-[250px]">{pinnedMessage.text}</span></div>
-                {showAdminPanel && <button onClick={onUnpin} className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded text-gray-500 hover:text-red-500"><X className="w-4 h-4" /></button>}
+                <button onClick={onUnpin} className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded text-gray-500 hover:text-red-500" title="Desfixar"><X className="w-4 h-4" /></button>
             </div>
         )}
 
@@ -414,7 +409,6 @@ const ChatArea = ({
             </div>
         )}
 
-        {/* ÁREA DE MENSAGENS */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar z-10 relative">
             {!searchQuery && messages.length >= 20 && (
                  <div ref={topSentinelRef} className="w-full h-4 flex justify-center items-center opacity-0 pointer-events-none">
@@ -480,7 +474,6 @@ const ChatArea = ({
             <div ref={messagesEndRef} />
         </div>
 
-        {/* INPUT AREA */}
         <footer className="bg-[#f0f2f5] dark:bg-[#202c33] p-2 md:p-3 flex flex-col gap-2 relative z-20 shadow-inner">
             
             {typingUsers && typingUsers.length > 0 && (
@@ -542,7 +535,7 @@ const ChatArea = ({
                         value={newMessage} 
                         onChange={(e) => setNewMessage(e.target.value)} 
                         onKeyDown={handleKeyDown} 
-                        onPaste={handlePaste} // AQUI ESTÁ O SEGREDO DO CTRL+V!
+                        onPaste={handlePaste} 
                         placeholder={editingMessage ? "Edite sua mensagem..." : "Mensagem..."} 
                         className="flex-grow p-3 bg-white dark:bg-[#2a3942] dark:text-white border-0 rounded-2xl focus:ring-0 focus:outline-none shadow-sm placeholder-gray-500 dark:placeholder-gray-400 text-gray-700 transition-colors duration-300" 
                         disabled={!currentConversationId} 
